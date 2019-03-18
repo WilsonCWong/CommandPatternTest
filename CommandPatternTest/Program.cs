@@ -25,18 +25,16 @@ namespace CommandPatternTest
     public class Game {
         private ConsoleKeyInfo? cki;
         private IntVar counter;
-        
-        private List<Command> commandQueue;
-        private int currentCommand = -1; // 0 is reserved for the first command in the command queue.
+
+        private CommandQueue commandQueue;
 
         public bool CanContinue { get; private set; }
 
         public Game() {
             CanContinue = true;
             counter = new IntVar(0);
-            commandQueue = new List<Command>();
+            commandQueue = new CommandQueue();
         }
-
 
         private void ReadInput()
         {
@@ -47,17 +45,17 @@ namespace CommandPatternTest
 
         private void LogQueue()
         {
-            if (currentCommand == -1)
+            if (commandQueue.Index == -1)
                 Console.ForegroundColor = ConsoleColor.Green;
             Console.Write($" [0 (Initial State)] ");
             Console.ResetColor();
                 
-            for (int i = 0; i < commandQueue.Count; i++)
+            for (int i = 0; i < commandQueue.Queue.Count; i++)
             {
-                if (currentCommand == i)
+                if (commandQueue.Index == i)
                     Console.ForegroundColor = ConsoleColor.Green;
-                string suffix = (i == commandQueue.Count - 1) ? " (Latest State)" : "";
-                Console.Write($" [{commandQueue[i].ReturnValue()}{suffix}] ");
+                string suffix = (i == commandQueue.Queue.Count - 1) ? " (Latest State)" : "";
+                Console.Write($" [{commandQueue.Queue[i].ReturnValue()}{suffix}] ");
                 Console.ResetColor();
             }
             
@@ -79,36 +77,22 @@ namespace CommandPatternTest
                 switch (cki.Value.Key)
                 {
                     case ConsoleKey.E: // New command
-                        // New command overwrites the one(s) after the current index if
-                        // the queue is not at the latest command (due to undo)
-                        if (currentCommand != commandQueue.Count - 1 && commandQueue.Count > 0)
-                            commandQueue.RemoveRange(currentCommand + 1, commandQueue.Count - (currentCommand + 1));
-                        commandQueue.Add(new Increment(counter));
-                        currentCommand = commandQueue.Count - 1;
-                        commandQueue[currentCommand].Execute();
+                        commandQueue.Enqueue(new Increment(counter));
                         executedFunction = "New";
                         break;
                     case ConsoleKey.Q: // Undo
-                        if (currentCommand >= 0)
-                        {
-                            commandQueue[currentCommand].Undo();
-                            currentCommand = (currentCommand == 0) ? -1 : currentCommand - 1;
+                        if (commandQueue.Undo())
                             executedFunction = "Undo";
-                        }
                         break;
                     case ConsoleKey.R: // Redo
-                        if (currentCommand != commandQueue.Count - 1 && commandQueue.Count >= 1)
-                        {
-                            currentCommand++;
-                            commandQueue[currentCommand].Execute();
+                        if (commandQueue.Redo())
                             executedFunction = "Redo";
-                        }
                         break;
                     default:
                         break;
                 }
 
-                if (executedFunction != "" && commandQueue.Count > 0)
+                if (executedFunction != "" && !commandQueue.IsQueueEmpty())
                 {
                     Console.Write($"{executedFunction}: ");
                     LogQueue();
